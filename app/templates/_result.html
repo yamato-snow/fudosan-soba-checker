@@ -1,0 +1,73 @@
+<div class="result">
+{% if v.judgeable %}
+  <p>
+    <span class="ratio">{{ "%+.1f"|format(v.ratio_percent) }}%</span>
+    <span class="muted">相場中央値比（＋＝割高／−＝割安）</span>
+    <span class="band band-{{ v.band }}">{{ v.band }}</span>
+  </p>
+  <table>
+    <tr><th>対象物件の㎡単価</th><td>{{ v.target_unit_price|yen }} 円/㎡</td></tr>
+    <tr><th>相場（中央値）</th><td>{{ v.median_unit_price|yen }} 円/㎡</td></tr>
+    <tr><th>四分位（Q1 / Q3）</th><td>{{ v.q1|yen }} / {{ v.q3|yen }} 円/㎡</td></tr>
+    {% if v.median_land_unit_price %}
+      <tr>
+        <th>参考: 土地面積単価（中央値）</th>
+        <td>{{ v.median_land_unit_price|yen }} 円/㎡<span class="muted">（判定には使いません）</span></td>
+      </tr>
+    {% endif %}
+    <tr>
+      <th>使用事例件数</th>
+      <td>
+        {{ v.case_count }} 件
+        {% if v.trimmed_count %}
+          <span class="muted">（外れ値 {{ v.trimmed_count }} 件を除外）</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr><th>抽出範囲（最終リング）</th><td>{{ v.ring_label }}</td></tr>
+    <tr><th>近隣地区（Ring1）の由来</th><td>{{ v.ring1_source or "-" }}</td></tr>
+    <tr><th>信頼度</th><td>{{ v.confidence }}（{{ v.confidence_note }}）</td></tr>
+  </table>
+  {% if v.dispersion_flag %}
+    <p class="muted">⚠ ばらつき大: 事例の㎡単価が広く散っています（Q3/Q1 &gt; 1.8）。バンド判定は参考程度に。</p>
+  {% endif %}
+  {% if v.relaxations %}
+    <p class="muted">緩和した条件: {{ v.relaxations|join(" / ") }}</p>
+  {% endif %}
+
+  <details>
+    <summary class="muted">使用した事例 {{ v.case_count }} 件を見る</summary>
+    <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>時期</th><th>地区</th><th>種別</th><th>価格</th><th>土地㎡</th><th>延床㎡</th><th>築年</th><th>㎡単価</th><th>区分</th>
+      </tr></thead>
+      <tbody>
+      {% for c in v.cases %}
+        <tr>
+          <td>{{ c.period_year }}年Q{{ c.period_quarter }}</td>
+          <td>{{ c.district_name }}</td>
+          <td>{{ type_labels.get(c.land_type, c.land_type) }}</td>
+          <td>{{ c.trade_price|yen }}</td>
+          <td>{{ c.area|yen }}</td>
+          <td>{{ c.total_floor_area|yen }}</td>
+          <td>{{ c.building_year or "-" }}</td>
+          <td>{{ c.unit_price|yen }}</td>
+          <td>{{ c.price_category }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+{% else %}
+  <p class="error">判定不能</p>
+  <p>{{ v.message }}</p>
+  <p class="muted">
+    見つかった事例: {{ v.case_count }} 件
+    {% if v.trimmed_count %}（外れ値 {{ v.trimmed_count }} 件を除外）{% endif %}
+    / 最終リング: {{ v.ring_label }} / 近隣地区の由来: {{ v.ring1_source or "-" }}
+    {% if v.relaxations %}/ 緩和した条件: {{ v.relaxations|join(" / ") }}{% endif %}
+  </p>
+{% endif %}
+</div>

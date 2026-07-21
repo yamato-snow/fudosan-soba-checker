@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not districts %}
+  <p class="error">取引データがまだありません。先に取込バッチを実行してください: <code>python -m app.workers.ingest</code></p>
+{% endif %}
+
+<form class="card" hx-post="/valuate" hx-target="#result" hx-swap="innerHTML">
+  <div>
+    <label for="land_type">種別</label>
+    <select id="land_type" name="land_type">
+      {% for t in types %}<option value="{{ t }}">{{ type_labels[t] }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="district_code">地区（物件の所在地区）</label>
+    <select id="district_code" name="district_code">
+      {% for d in districts %}
+        <option value="{{ d.code }}" {% if d.code == home_district %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="listing_price">掲載価格（円）</label>
+    <input id="listing_price" name="listing_price" type="number" min="1" step="10000" required placeholder="例: 25000000">
+  </div>
+  <div>
+    <label for="area">土地面積（㎡）</label>
+    <input id="area" name="area" type="number" min="1" step="0.01" required placeholder="例: 180">
+  </div>
+  <div>
+    <label for="total_floor_area">延床面積（㎡・中古戸建は必須）</label>
+    <input id="total_floor_area" name="total_floor_area" type="number" min="1" step="0.01" placeholder="例: 105">
+  </div>
+  <div>
+    <label for="building_year">築年（西暦・中古戸建のみ）</label>
+    <input id="building_year" name="building_year" type="number" min="1900" max="2100" step="1" placeholder="例: 1998">
+  </div>
+  <div style="align-self:end">
+    <button type="submit">相場と比べる</button>
+  </div>
+</form>
+
+<p class="muted">
+  ㎡単価の主指標: 土地=価格÷土地面積 / 中古戸建=価格÷延床面積。
+  相場は同一地区→近隣地区→基準市→対象市の順に事例を探し、5件に満たなければ条件を自動で緩めます。
+</p>
+
+<div id="result"></div>
+{% endblock %}

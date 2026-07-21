@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}取引データ一覧 | 不動産相場チェッカー{% endblock %}
+{% block content %}
+
+<form class="card" method="get" action="/transactions">
+  <div>
+    <label for="district_code">地区</label>
+    <select id="district_code" name="district_code">
+      <option value="">（すべて）</option>
+      {% for d in districts %}
+        <option value="{{ d.code }}" {% if d.code == selected_district %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="land_type">種別</label>
+    <select id="land_type" name="land_type">
+      <option value="">（すべて）</option>
+      {% for t in types %}
+        <option value="{{ t }}" {% if t == selected_type %}selected{% endif %}>{{ type_labels[t] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="align-self:end"><button type="submit">絞り込む</button></div>
+</form>
+
+<p class="muted">{{ rows|length }} 件を表示（新しい順）。㎡単価は主指標（土地=価格÷土地面積 / 戸建=価格÷延床）。</p>
+
+{% if not rows %}
+  <p class="error">データがありません。取込バッチを実行してください: <code>python -m app.workers.ingest</code></p>
+{% else %}
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>時期</th><th>市区町村 / 地区</th><th>種別</th><th>価格</th><th>土地㎡</th><th>延床㎡</th><th>築年</th><th>㎡単価</th><th>区分</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.period_year }}年Q{{ r.period_quarter }}</td>
+      <td>{{ r.municipality }} {{ r.district_name }}</td>
+      <td>{{ type_labels.get(r.land_type, r.land_type) }}</td>
+      <td>{{ r.trade_price|yen }}</td>
+      <td>{{ r.area|yen }}</td>
+      <td>{{ r.total_floor_area|yen }}</td>
+      <td>{{ r.building_year or "-" }}</td>
+      <td>{{ r.unit_price|yen }}</td>
+      <td>{{ r.price_category }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

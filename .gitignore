@@ -1,0 +1,22 @@
+# 秘密情報・ローカル設定
+.env
+.env.*
+
+# 取込データ・API 生レスポンス（再取得できるのでコミットしない）
+data/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# ツールのキャッシュ
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
