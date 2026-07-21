@@ -22,7 +22,9 @@
   </div>
   <div>
     <label for="listing_price">掲載価格（円）</label>
-    <input id="listing_price" name="listing_price" type="number" min="1" step="10000" required placeholder="例: 25000000">
+    {# step は 1 にする。min="1" と step="10000" を併用すると step の基準が min になり、
+       有効値が 1・10001・20001… となって現実の価格がすべて弾かれる #}
+    <input id="listing_price" name="listing_price" type="number" min="1" step="1" required placeholder="例: 25000000">
   </div>
   <div>
     <label for="area">土地面積（㎡）</label>
