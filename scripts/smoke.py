@@ -42,6 +42,20 @@ CHECKS = [
             }
         },
     ),
+    (
+        # 区分（A-1）: 延床を渡さない。単価分岐が抜けていると 400/500 になる
+        "POST",
+        "/api/valuate",
+        {
+            "json": {
+                "land_type": "中古マンション等",
+                "district_code": "",
+                "listing_price": 15000000,
+                "area": 75,
+                "building_year": 2000,
+            }
+        },
+    ),
 ]
 
 

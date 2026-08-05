@@ -16,7 +16,7 @@ from dataclasses import dataclass, replace
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.constants import TYPE_HOUSE, TYPE_LAND
+from app.constants import TYPE_CONDO, TYPE_HOUSE, TYPE_LAND
 from app.models.transaction import Transaction
 from app.services.valuation import Case, Criteria
 
@@ -87,14 +87,16 @@ def build_case_query(ctx: RingContext, target: TargetProperty, criteria: Criteri
         Transaction.unit_price > 0,
     )
 
-    # 土地面積で絞る（土地・戸建とも敷地の規模感を揃える）
+    # 面積で絞る（土地・戸建=土地面積で敷地の規模感を揃える / 区分=Area が専有面積）
     if target.area and target.area > 0:
         low = target.area * (1 - criteria.area_tolerance)
         high = target.area * (1 + criteria.area_tolerance)
         stmt = stmt.where(Transaction.area >= low, Transaction.area <= high)
 
     # 延床は戸建のみ。主指標が延床単価である以上「比べる軸」と「絞る軸」を一致させる
-    # （これが無いと延床40㎡と180㎡が同じ母集団に入り、㎡単価が桁違いに暴れる）
+    # （これが無いと延床40㎡と180㎡が同じ母集団に入り、㎡単価が桁違いに暴れる）。
+    # 区分は TotalFloorArea が実データで全件空なので**適用してはいけない**（必ず0件になる）。
+    # 区分の「比べる軸と絞る軸の一致」は上の面積フィルタ（=専有面積）が既に担っている
     if (
         target.land_type == TYPE_HOUSE
         and target.total_floor_area
@@ -108,9 +110,9 @@ def build_case_query(ctx: RingContext, target: TargetProperty, criteria: Criteri
             Transaction.total_floor_area <= high_floor,
         )
 
-    # 築年は戸建のみ（土地に築年は無い）
+    # 築年は建物がある種別のみ（土地に築年は無い）。区分は BuildingYear が実データで全件充足
     if (
-        target.land_type == TYPE_HOUSE
+        target.land_type in (TYPE_HOUSE, TYPE_CONDO)
         and target.building_year
         and criteria.year_tolerance is not None
     ):

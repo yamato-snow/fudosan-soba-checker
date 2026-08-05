@@ -40,7 +40,9 @@
     <div class="scroll">
     <table>
       <thead><tr>
-        <th>時期</th><th>地区</th><th>種別</th><th>価格</th><th>土地㎡</th><th>延床㎡</th><th>築年</th><th>㎡単価</th><th>区分</th>
+        {# 面積列の中身は種別で意味が変わる（区分は Area が専有面積）ので見出しも合わせる #}
+        <th>時期</th><th>地区</th><th>種別</th><th>価格</th><th>{{ v.criteria.area_label }}㎡</th>
+        <th>延床㎡</th><th>築年</th><th>㎡単価</th><th>区分</th>
       </tr></thead>
       <tbody>
       {% for c in v.cases %}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.constants import TYPE_HOUSE, TYPE_LAND
+from app.constants import TYPE_CONDO, TYPE_HOUSE, TYPE_LAND
 from app.services.districts import (
     RING1_SOURCE_AUTO,
     RING1_SOURCE_MANUAL,
@@ -16,7 +16,12 @@ from app.services.districts import (
 )
 from app.services.reinfolib import normalize
 from app.services.storage import count_transactions, upsert_transactions
-from app.services.valuation import EXPANSION_STAGES, EXPANSION_STAGES_HOUSE, Criteria
+from app.services.valuation import (
+    EXPANSION_STAGES,
+    EXPANSION_STAGES_CONDO,
+    EXPANSION_STAGES_HOUSE,
+    Criteria,
+)
 
 HOME_DISTRICT = "990010040"  # サンプル市・基準地区
 NEIGHBOR_DISTRICT = "990010041"  # 近隣地区（Ring1）
@@ -190,6 +195,68 @@ async def test_floor_filter_keeps_kokaya_out_of_the_sample(session):
     floors = sorted(c.total_floor_area for c in widest)
     assert 45 not in floors
     assert 180 not in floors
+
+
+async def test_condo_filters_by_year_but_not_by_total_floor_area(session):
+    """区分: 築年フィルタは効き、延床フィルタは効かない（実データで TotalFloorArea が全件空）。
+
+    延床フィルタを区分にも適用すると、母集団が必ず0件になって判定不能が常態化する。
+    """
+    await seed(
+        session,
+        [
+            # 専有面積が近い区分（築年も近い）
+            raw(district=HOME_DISTRICT, land_type=TYPE_CONDO, area="75", year="2000年"),
+            raw(district=HOME_DISTRICT, land_type=TYPE_CONDO, area="80", year="2003年"),
+            # 築年が離れすぎ（±5年外・±10年には入る）
+            raw(district=HOME_DISTRICT, land_type=TYPE_CONDO, area="75", year="1993年"),
+            # 専有面積が ±30% 外（±50% には入る）
+            raw(district=HOME_DISTRICT, land_type=TYPE_CONDO, area="105", year="2000年"),
+        ],
+    )
+    target = TargetProperty(
+        land_type=TYPE_CONDO,
+        district_code=HOME_DISTRICT,
+        area=75,
+        total_floor_area=None,  # 区分は入力されない
+        building_year=2001,
+    )
+
+    tight = await fetch_cases(session, ctx(), target, EXPANSION_STAGES_CONDO[0])
+    assert len(tight) == 2  # 築年±5年・専有面積±30%
+
+    # 築年を撤廃すると築古が入る
+    loose_year = await fetch_cases(session, ctx(), target, EXPANSION_STAGES_CONDO[4])
+    assert len(loose_year) == 3
+
+    # 専有面積を ±50% にすると 105㎡ も入る
+    widest = await fetch_cases(session, ctx(), target, EXPANSION_STAGES_CONDO[-1])
+    assert sorted(c.area for c in widest) == [75, 75, 80, 105]
+
+    # 延床が全件空でも事例は消えない（＝延床フィルタが適用されていない証拠）
+    assert all(c.total_floor_area is None for c in widest)
+
+
+async def test_condo_unit_price_is_price_per_exclusive_area(session):
+    """区分の主指標は総額÷専有面積。戸建のように延床が無いと落ちる作りにしない。"""
+    await seed(
+        session,
+        [
+            raw(
+                district=HOME_DISTRICT,
+                land_type=TYPE_CONDO,
+                area="85",
+                price="8500000",
+                year="1981年",
+            )
+        ],
+    )
+    target = TargetProperty(
+        land_type=TYPE_CONDO, district_code=HOME_DISTRICT, area=85, building_year=1981
+    )
+
+    found = await fetch_cases(session, ctx(), target, EXPANSION_STAGES_CONDO[0])
+    assert [c.unit_price for c in found] == [100_000]
 
 
 async def test_land_query_is_unaffected_by_floor_tolerance(session):

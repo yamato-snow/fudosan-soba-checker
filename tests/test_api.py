@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.constants import TYPE_HOUSE, TYPE_LAND
+from app.constants import TYPE_CONDO, TYPE_HOUSE, TYPE_LAND
 from app.db import get_sessionmaker
 from app.services.reinfolib import normalize
 from app.services.storage import upsert_transactions
@@ -235,6 +235,91 @@ async def test_valuate_htmx_shows_trim_and_ring1_source(client):
     assert "近隣地区（Ring1）の由来" in res.text
     assert "手動設定" in res.text
     assert "参考: 土地面積単価" in res.text
+
+
+def _condo(price: int, *, area: str = "75", year: str = "2000年") -> dict:
+    return raw(
+        district=HOME_DISTRICT,
+        land_type=TYPE_CONDO,
+        price=str(price),
+        area=area,
+        tfa="",  # 実データどおり区分は延床が空
+        year=year,
+    )
+
+
+async def test_valuate_condo_returns_judgement_without_total_floor_area(client):
+    """区分の E2E: 延床を渡さなくても ValueError にならず、専有面積単価で判定が返る。
+
+    `unit_price_for_target()` の CONDO 分岐を落とすと戸建側へ落ちて 400 になる回帰テスト。
+    """
+    # 専有面積75㎡・㎡単価 200,000〜240,000 の区分5件
+    await _seed([_condo(p) for p in (15_000_000, 15_750_000, 16_500_000, 17_250_000, 18_000_000)])
+
+    res = await client.post(
+        "/api/valuate",
+        json={
+            "land_type": TYPE_CONDO,
+            "district_code": HOME_DISTRICT,
+            "listing_price": 12_750_000,  # 170,000円/㎡ → 中央値 220,000 比 −22.7%
+            "area": 75,
+            "building_year": 2000,
+        },
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["judgeable"] is True
+    assert body["median_unit_price"] == 220_000  # 総額÷専有面積（延床では割らない）
+    assert round(body["ratio_percent"], 1) == -22.7
+    assert body["band"] == "割安"
+    assert body["confidence"] == "A"
+    assert body["case_count"] == 5
+    assert all(c["total_floor_area"] is None for c in body["cases"])
+
+
+async def test_valuate_condo_htmx_renders_condo_label(client):
+    await _seed([_condo(p) for p in (15_000_000, 15_750_000, 16_500_000, 17_250_000, 18_000_000)])
+
+    res = await client.post(
+        "/valuate",
+        data={
+            "land_type": TYPE_CONDO,
+            "district_code": HOME_DISTRICT,
+            "listing_price": "12750000",
+            "area": "75",
+            "building_year": "2000",
+        },
+    )
+
+    assert res.status_code == 200
+    assert "割安" in res.text
+    assert "中古マンション（区分）" in res.text  # 事例表の種別ラベル
+    assert "5 件" in res.text
+
+
+async def test_valuate_condo_year_filter_drives_expansion(client):
+    """築年が離れた区分は初期条件に入らず、築年を緩めて拾う（信頼度は B に落ちる）。"""
+    prices = (15_000_000, 15_750_000, 16_500_000, 17_250_000, 18_000_000)
+    await _seed([_condo(p, year="1985年") for p in prices])
+
+    res = await client.post(
+        "/api/valuate",
+        json={
+            "land_type": TYPE_CONDO,
+            "district_code": HOME_DISTRICT,
+            "listing_price": 16_500_000,
+            "area": 75,
+            "building_year": 2000,  # 事例とは15年差
+        },
+    )
+
+    body = res.json()
+    assert body["judgeable"] is True
+    assert body["confidence"] == "B"
+    assert "築年の条件を撤廃" in body["relaxations"]
+    # 緩和文言に「土地面積」が混ざらない（区分で緩むのは専有面積）
+    assert not any("土地面積" in n for n in body["relaxations"])
 
 
 async def test_openapi_and_all_routes_smoke(client):

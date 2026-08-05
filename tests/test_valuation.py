@@ -12,11 +12,13 @@ from app.constants import (
     CONFIDENCE_B,
     CONFIDENCE_C,
     CONFIDENCE_NONE,
+    TYPE_CONDO,
     TYPE_HOUSE,
     TYPE_LAND,
 )
 from app.services.valuation import (
     EXPANSION_STAGES,
+    EXPANSION_STAGES_CONDO,
     EXPANSION_STAGES_HOUSE,
     EXPANSION_STAGES_LAND,
     Case,
@@ -141,6 +143,9 @@ def test_expansion_exhausted_with_four_cases_is_confidence_c():
 def test_unit_price_for_target():
     assert unit_price_for_target(TYPE_LAND, 25_000_000, 200, None) == 125_000
     assert unit_price_for_target(TYPE_HOUSE, 25_000_000, 200, 100) == 250_000  # 戸建は延床基準
+    # 区分は Area が専有面積。延床が無くても（あっても無視して）専有面積で割る
+    assert unit_price_for_target(TYPE_CONDO, 15_000_000, 75, None) == 200_000
+    assert unit_price_for_target(TYPE_CONDO, 15_000_000, 75, 80) == 200_000
 
 
 def test_unit_price_for_target_requires_total_floor_area_for_house():
@@ -148,6 +153,12 @@ def test_unit_price_for_target_requires_total_floor_area_for_house():
         unit_price_for_target(TYPE_HOUSE, 25_000_000, 200, None)
     with pytest.raises(ValueError):
         unit_price_for_target(TYPE_LAND, 25_000_000, 0, None)
+
+
+def test_unit_price_for_target_requires_area_for_condo():
+    """区分の分岐を落とすと戸建側に落ちて「延床が必要」と誤ったエラーになる回帰テスト。"""
+    with pytest.raises(ValueError, match="専有面積"):
+        unit_price_for_target(TYPE_CONDO, 15_000_000, 0, None)
 
 
 def test_evaluate_rejects_non_positive_target():
@@ -167,6 +178,9 @@ def test_cases_without_unit_price_are_excluded():
 def test_stages_are_separated_by_land_type():
     assert stages_for(TYPE_LAND) is EXPANSION_STAGES_LAND
     assert stages_for(TYPE_HOUSE) is EXPANSION_STAGES_HOUSE
+    assert stages_for(TYPE_CONDO) is EXPANSION_STAGES_CONDO
+    # 未知の種別は土地の並びに落とす（例外を投げて画面を落とさない）
+    assert stages_for("農地") is EXPANSION_STAGES_LAND
     # 土地は現行どおり延床条件なし（6段）
     assert len(EXPANSION_STAGES_LAND) == 6
     assert all(c.floor_tolerance is None for c in EXPANSION_STAGES_LAND)
@@ -190,6 +204,37 @@ def test_house_relaxations_report_floor_widening():
     assert "築年を±10年に緩和" in notes
     # 初期条件そのものは「緩和した」と言わない
     assert base.relaxations(base) == []
+
+
+def test_condo_stages_have_no_floor_step_and_relax_year_then_area():
+    """区分は TotalFloorArea が実データで全件空なので、延床の段を持ってはいけない。"""
+    assert all(c.floor_tolerance is None for c in EXPANSION_STAGES_CONDO)
+    # 緩和順: リング → 築年 → 築年撤廃 → 専有面積（戸建から延床の2段を抜いた6段）
+    assert [c.ring for c in EXPANSION_STAGES_CONDO] == [1, 2, 3, 3, 3, 3]
+    assert [c.year_tolerance for c in EXPANSION_STAGES_CONDO] == [5, 5, 5, 10, None, None]
+    assert [c.area_tolerance for c in EXPANSION_STAGES_CONDO] == [0.3] * 5 + [0.5]
+
+
+def test_condo_relaxations_say_exclusive_area_not_land_area():
+    """区分で「土地面積を緩和」と出ると、実際に緩んだ軸（専有面積）と食い違う。"""
+    notes = EXPANSION_STAGES_CONDO[-1].relaxations(EXPANSION_STAGES_CONDO[0])
+    assert "専有面積を±50%に緩和" in notes
+    assert not any("土地面積" in n for n in notes)
+    # 土地・戸建の文言は従来どおり
+    assert "土地面積を±50%に緩和" in EXPANSION_STAGES_LAND[-1].relaxations(EXPANSION_STAGES_LAND[0])
+
+
+def test_condo_expansion_reports_area_relaxation_end_to_end():
+    def fetch(criteria: Criteria):
+        if criteria.area_tolerance == 0.3:
+            return cases(200_000)
+        return cases(180_000, 190_000, 200_000, 210_000, 220_000)
+
+    v = evaluate_with_expansion(fetch, 195_000, stages=EXPANSION_STAGES_CONDO)
+
+    assert v.case_count == 5
+    assert "専有面積を±50%に緩和" in v.relaxations
+    assert v.confidence == CONFIDENCE_B
 
 
 def test_house_expansion_reports_floor_relaxation_end_to_end():
