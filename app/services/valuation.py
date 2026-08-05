@@ -31,6 +31,7 @@ from app.constants import (
     MIN_CASES,
     MIN_CASES_JUDGEABLE,
     RING_LABELS,
+    TYPE_CONDO,
     TYPE_HOUSE,
     TYPE_LAND,
 )
@@ -52,8 +53,11 @@ class Criteria:
 
     ring: int  # この値までのリングを対象にする（0=同一地区 … 3=対象市全域）
     year_tolerance: int | None  # 築年±N年。None=無制限
-    area_tolerance: float  # 土地面積±N%（0.3 = ±30%）
+    area_tolerance: float  # 面積±N%（0.3 = ±30%）。区分では専有面積に効く
     floor_tolerance: float | None = None  # 延床±N%。None=条件なし（土地で使用）
+    # `area_tolerance` が何の面積かの表示名。区分は Area 自体が専有面積なので言葉を変える
+    # （デフォルト付き＝既存の呼び出しと挙動に影響しない）
+    area_label: str = "土地面積"
 
     def relaxations(self, base: "Criteria") -> list[str]:
         """初期条件からどこを緩めたかの説明。"""
@@ -66,7 +70,7 @@ class Criteria:
             else:
                 notes.append(f"築年を±{self.year_tolerance}年に緩和")
         if self.area_tolerance != base.area_tolerance:
-            notes.append(f"土地面積を±{int(self.area_tolerance * 100)}%に緩和")
+            notes.append(f"{self.area_label}を±{int(self.area_tolerance * 100)}%に緩和")
         if self.floor_tolerance != base.floor_tolerance:
             if self.floor_tolerance is None:
                 notes.append("延床の条件を撤廃")
@@ -98,19 +102,39 @@ EXPANSION_STAGES_HOUSE: tuple[Criteria, ...] = (
     Criteria(ring=3, year_tolerance=None, area_tolerance=0.5, floor_tolerance=0.5),
 )
 
+# 区分マンション: 主指標が専有面積単価で、絞る軸（Area）と比べる軸が最初から一致している。
+# `TotalFloorArea` は実データで全件空なので**延床の段を持たない**（持つと必ず0件になる）。
+# 緩和順は「リング→築年→築年撤廃→専有面積」で、戸建から延床の2段を抜いた形。
+CONDO_AREA_LABEL = "専有面積"
+EXPANSION_STAGES_CONDO: tuple[Criteria, ...] = (
+    Criteria(ring=1, year_tolerance=5, area_tolerance=0.3, area_label=CONDO_AREA_LABEL),
+    Criteria(ring=2, year_tolerance=5, area_tolerance=0.3, area_label=CONDO_AREA_LABEL),
+    Criteria(ring=3, year_tolerance=5, area_tolerance=0.3, area_label=CONDO_AREA_LABEL),
+    Criteria(ring=3, year_tolerance=10, area_tolerance=0.3, area_label=CONDO_AREA_LABEL),
+    Criteria(ring=3, year_tolerance=None, area_tolerance=0.3, area_label=CONDO_AREA_LABEL),
+    Criteria(ring=3, year_tolerance=None, area_tolerance=0.5, area_label=CONDO_AREA_LABEL),
+)
+
 # 後方互換のエイリアス（土地＝従来の単一 STAGES）
 EXPANSION_STAGES: tuple[Criteria, ...] = EXPANSION_STAGES_LAND
+
+_STAGES_BY_TYPE: dict[str, tuple[Criteria, ...]] = {
+    TYPE_HOUSE: EXPANSION_STAGES_HOUSE,
+    TYPE_CONDO: EXPANSION_STAGES_CONDO,
+}
 
 
 def stages_for(land_type: str) -> tuple[Criteria, ...]:
     """種別に応じた段階拡張の並び。"""
-    return EXPANSION_STAGES_HOUSE if land_type == TYPE_HOUSE else EXPANSION_STAGES_LAND
+    return _STAGES_BY_TYPE.get(land_type, EXPANSION_STAGES_LAND)
 
 
 def _base_stage(criteria: Criteria) -> Criteria:
     """緩和内容を説明するときの基準（初期条件）。"""
     if criteria.floor_tolerance is not None:
         return EXPANSION_STAGES_HOUSE[0]
+    if criteria.area_label == CONDO_AREA_LABEL:
+        return EXPANSION_STAGES_CONDO[0]
     return EXPANSION_STAGES_LAND[0]
 
 
@@ -345,12 +369,21 @@ def unit_price_for_target(
     area: float,
     total_floor_area: float | None,
 ) -> float:
-    """対象物件の主指標㎡単価（土地=掲載価格÷土地面積 / 戸建=掲載価格÷延床）。"""
+    """対象物件の主指標㎡単価。
+
+    土地=掲載価格÷土地面積 / 区分=掲載価格÷専有面積 / 戸建=掲載価格÷延床。
+    区分は XIT001 の `Area` 自体が専有面積で `TotalFloorArea` が空なので、土地と同じ式になる
+    （実データ確認済み。docs/design.md「区分マンション対応（A-1）」）。
+    """
     if listing_price <= 0:
         raise ValueError("掲載価格は正の数で入力してください")
     if land_type == TYPE_LAND:
         if not area or area <= 0:
             raise ValueError("土地は土地面積（㎡）が必要です")
+        return listing_price / area
+    if land_type == TYPE_CONDO:
+        if not area or area <= 0:
+            raise ValueError("中古マンションは専有面積（㎡）が必要です")
         return listing_price / area
     if not total_floor_area or total_floor_area <= 0:
         raise ValueError("中古戸建は延床面積（㎡）が必要です（主指標が延床単価のため）")

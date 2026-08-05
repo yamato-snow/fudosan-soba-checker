@@ -26,7 +26,7 @@ SAMPLE = {
             "MunicipalityCode": "99001",
             "Prefecture": "静岡県",
             "Municipality": "サンプル市",
-            "DistrictName": "梅名",
+            "DistrictName": "地区40",
             "DistrictCode": "990010040",
             "TradePrice": "30000000",
             "Area": "300",
@@ -42,7 +42,7 @@ SAMPLE = {
             "MunicipalityCode": "99001",
             "Prefecture": "静岡県",
             "Municipality": "サンプル市",
-            "DistrictName": "壱町田",
+            "DistrictName": "地区41",
             "DistrictCode": "990010041",
             "TradePrice": "18000000",
             "Area": "210",
@@ -51,14 +51,24 @@ SAMPLE = {
             "BuildingYear": "1993年",
             "Period": "2024年第4四半期",
         },
-        {  # 対象外種別は落ちる
+        {  # 区分マンション（A-1 で対象に追加）。実データどおり TotalFloorArea は空・Area=専有面積
+            "PriceCategory": "成約価格情報",
             "Type": "中古マンション等",
-            "TradePrice": "8300000",
-            "Area": "85",
-            "Period": "2024年第4四半期",
+            "MunicipalityCode": "99001",
+            "Prefecture": "静岡県",
+            "Municipality": "サンプル市",
+            "DistrictName": "地区40",
             "DistrictCode": "990010040",
+            "TradePrice": "8500000",
+            "Area": "85",
+            "UnitPrice": "",
+            "TotalFloorArea": "",
+            "BuildingYear": "1981年",
+            "Structure": "ＲＣ",
+            "FloorPlan": "３ＬＤＫ",
+            "Period": "2024年第4四半期",
         },
-        {  # 農地も落ちる
+        {  # 農地は落ちる
             "Type": "農地",
             "TradePrice": "700000",
             "Area": "700",
@@ -116,9 +126,25 @@ def test_normalize_house_without_total_floor_area_has_no_primary_unit_price():
     assert record.land_unit_price is not None
 
 
+def test_normalize_condo_uses_exclusive_area():
+    """区分は Area が専有面積なので、主指標は土地と同じ「総額÷Area」になる。
+
+    実データ確認（docs/design.md）: TotalFloorArea は全件空・BuildingYear は充足。
+    延床が空でも主指標が None にならないことがこのテストの本体。
+    """
+    record = normalize(SAMPLE["data"][2])
+    assert record is not None
+    assert record.land_type == "中古マンション等"
+    assert record.total_floor_area is None
+    assert record.unit_price == pytest.approx(100_000)  # 850万 ÷ 85㎡
+    assert record.land_unit_price == pytest.approx(100_000)  # 区分では主指標と同値
+    assert record.building_year == 1981
+    assert record.structure == "ＲＣ"
+
+
 def test_normalize_rejects_out_of_scope_types():
-    assert normalize(SAMPLE["data"][2]) is None
-    assert normalize(SAMPLE["data"][3]) is None
+    assert normalize(SAMPLE["data"][3]) is None  # 農地
+    assert normalize(dict(SAMPLE["data"][0], Type="林地")) is None
 
 
 def test_content_hash_is_stable_and_discriminating():
@@ -144,9 +170,13 @@ async def test_fetch_quarter_filters_and_sends_api_key():
     assert seen["key"] == "dummy"
     assert "XIT001" in seen["url"] and "city=99001" in seen["url"]
     assert "year=2024" in seen["url"] and "quarter=4" in seen["url"]
-    # 対象2種別だけが残る
-    assert len(records) == 2
-    assert {r.land_type for r in records} == {"宅地(土地)", "宅地(土地と建物)"}
+    # 対象3種別だけが残る（農地は落ちる）
+    assert len(records) == 3
+    assert {r.land_type for r in records} == {
+        "宅地(土地)",
+        "宅地(土地と建物)",
+        "中古マンション等",
+    }
 
 
 async def test_fetch_quarter_retries_on_429_then_succeeds():
@@ -169,7 +199,7 @@ async def test_fetch_quarter_retries_on_429_then_succeeds():
 
     assert calls["n"] == 2
     assert slept and slept[0] == 1  # 指数バックオフ 1秒 → 2秒 …
-    assert len(records) == 2
+    assert len(records) == 3
 
 
 async def test_fetch_quarter_treats_404_as_empty():

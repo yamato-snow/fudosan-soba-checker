@@ -19,7 +19,7 @@ from dataclasses import asdict, dataclass
 import httpx
 
 from app.config import Settings, get_settings
-from app.constants import TARGET_TYPES, TYPE_HOUSE, TYPE_LAND
+from app.constants import TARGET_TYPES, TYPE_CONDO, TYPE_HOUSE, TYPE_LAND
 
 _PERIOD_RE = re.compile(r"(\d{4})年第(\d)四半期")
 _YEAR_RE = re.compile(r"(\d{4})年")
@@ -123,8 +123,9 @@ def normalize(raw: dict) -> TransactionRecord | None:
     total_floor_area = _to_float(raw.get("TotalFloorArea"))
     land_unit_price = trade_price / area
 
-    # 主指標: 土地=総額÷土地面積 / 戸建=総額÷延床（延床が無い戸建は主指標を計算できない）
-    if land_type == TYPE_LAND:
+    # 主指標: 土地=総額÷土地面積 / 区分=総額÷専有面積（Area が専有面積なので土地と同じ式）
+    #        / 戸建=総額÷延床（延床が無い戸建は主指標を計算できない）
+    if land_type in (TYPE_LAND, TYPE_CONDO):
         unit_price: float | None = land_unit_price
     elif total_floor_area:
         unit_price = trade_price / total_floor_area
@@ -287,6 +288,7 @@ __all__ = [
     "parse_building_year",
     "parse_period",
     "quarters_window",
+    "TYPE_CONDO",
     "TYPE_HOUSE",
     "TYPE_LAND",
 ]

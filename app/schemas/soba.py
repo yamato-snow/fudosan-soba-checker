@@ -13,9 +13,13 @@ class ValuationRequest(BaseModel):
     land_type: str = Field(description=f"種別（{ ' / '.join(TARGET_TYPES) }）")
     district_code: str = Field(description="地区コード9桁（プルダウンで選択）")
     listing_price: float = Field(gt=0, description="掲載価格（円）")
-    area: float = Field(gt=0, description="土地面積（㎡）")
-    total_floor_area: float | None = Field(default=None, description="延床面積（㎡・中古戸建は必須）")
-    building_year: int | None = Field(default=None, description="築年（西暦・中古戸建のみ）")
+    area: float = Field(gt=0, description="土地面積（㎡）。中古マンションは専有面積（㎡）")
+    total_floor_area: float | None = Field(
+        default=None, description="延床面積（㎡・中古戸建は必須。中古マンションは不要）"
+    )
+    building_year: int | None = Field(
+        default=None, description="築年（西暦・中古戸建／中古マンション）"
+    )
 
 
 class CaseOut(BaseModel):

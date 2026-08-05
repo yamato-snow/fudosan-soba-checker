@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-# XIT001 の Type 値。本ツールの対象2種別（中古マンション等・農地等は対象外）
+# XIT001 の Type 値。本ツールの対象3種別（農地・林地等は対象外）
 TYPE_LAND = "宅地(土地)"
 TYPE_HOUSE = "宅地(土地と建物)"
-TARGET_TYPES = (TYPE_LAND, TYPE_HOUSE)
+# 区分マンション。投資の主戦場なので A-1 で対象に加えた。
+# 実データ確認済み（docs/design.md）: Area=専有面積 / TotalFloorArea は空 / BuildingYear は充足
+TYPE_CONDO = "中古マンション等"
+TARGET_TYPES = (TYPE_LAND, TYPE_HOUSE, TYPE_CONDO)
 
 TYPE_LABELS = {
     TYPE_LAND: "土地",
     TYPE_HOUSE: "中古戸建（土地と建物）",
+    TYPE_CONDO: "中古マンション（区分）",
 }
 
 # 判定に必要な最小事例数（これ未満なら抽出条件を段階拡張する）
