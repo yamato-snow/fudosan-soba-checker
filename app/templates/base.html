@@ -27,6 +27,14 @@
     .band-割安 { background: #e3f4e6; } .band-適正 { background: #eef1f4; } .band-割高 { background: #fbe7e7; }
     .error { color: #a33; }
     .scroll { overflow-x: auto; }
+    .warn { border-left: 4px solid #c88; background: #fbf3f3; padding: .5rem .8rem; margin: .5rem 0; }
+    .kpi { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+           margin-bottom: 1rem; }
+    .kpi div { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .7rem; }
+    .kpi span { display: block; font-size: .75rem; }
+    .kpi strong { font-size: 1.15rem; }
+    .cf-table { font-size: .78rem; }
+    .cf-table th, .cf-table td { padding: .25rem .4rem; }
   </style>
 </head>
 <body>
@@ -34,6 +42,7 @@
   <nav class="muted">
     <a href="/">割安判定</a><a href="/transactions">取引データ一覧</a>
     <a href="/rent">賃料相場</a><a href="/rent/listings">賃料事例</a>
+    <a href="/cashflow">収支シミュレーション</a>
     <span>データ出典: 国土交通省 不動産情報ライブラリ（取引価格情報・成約価格情報）／賃料は手入力・CSV</span>
   </nav>
   {% block content %}{% endblock %}

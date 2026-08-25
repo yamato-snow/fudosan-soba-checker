@@ -1,0 +1,88 @@
+{% macro yen_or_dash(v) %}{% if v is none %}—{% else %}{{ v|yen }}{% endif %}{% endmacro %}
+{% macro pct_or_dash(v) %}{% if v is none %}—{% else %}{{ "%.2f"|format(v * 100) }}%{% endif %}{% endmacro %}
+
+<div class="result">
+  {% for w in r.warnings %}
+    <p class="warn">⚠ {{ w }}</p>
+  {% endfor %}
+
+  <div class="kpi">
+    <div><span class="muted">表面利回り</span><strong>{{ "%.2f"|format(r.first_year.gross_yield * 100) }}%</strong></div>
+    <div><span class="muted">実質利回り</span><strong>{{ "%.2f"|format(r.first_year.net_yield * 100) }}%</strong></div>
+    <div><span class="muted">返済比率</span><strong>{{ pct_or_dash(r.first_year.repayment_ratio) }}</strong></div>
+    <div><span class="muted">DSCR</span><strong>{% if r.first_year.dscr is none %}—{% else %}{{ "%.2f"|format(r.first_year.dscr) }}{% endif %}</strong></div>
+    <div><span class="muted">初年度 BTCF</span><strong>{{ r.first_year.btcf|yen }} 円</strong></div>
+    {% if with_tax %}
+      <div><span class="muted">初年度 ATCF</span><strong>{{ r.first_year.atcf|yen }} 円</strong></div>
+    {% endif %}
+  </div>
+
+  <table>
+    <tr><th>自己資金</th><td>{{ r.equity|yen }} 円</td></tr>
+    <tr><th>{{ r.years|length }}年の累計{% if with_tax %}ATCF{% else %}BTCF{% endif %}</th><td>{{ r.total_atcf|yen }} 円</td></tr>
+    {% if with_tax %}
+      <tr>
+        <th>デッドクロス</th>
+        <td>
+          {% if r.dead_cross_year %}
+            {{ r.dead_cross_year }}年目から（元金返済 &gt; 減価償却）
+          {% else %}期間中に発生しません{% endif %}
+        </td>
+      </tr>
+      <tr><th>耐用年数（償却期間）</th><td>{{ r.useful_life or "—" }} 年（償却が乗る年数 {{ r.depreciation_years }}年）</td></tr>
+    {% endif %}
+    {% if r.exit %}
+      <tr><th>売却（{{ r.exit.year }}年目）</th><td>
+        {{ r.exit.sale_price|yen }} 円 −諸費用 {{ r.exit.sale_costs|yen }} −譲渡税 {{ r.exit.transfer_tax|yen }}
+        −残債 {{ r.exit.loan_balance|yen }} = <strong>手取り {{ r.exit.net_sale_proceeds|yen }} 円</strong>
+        <span class="muted">（{% if r.exit.is_long_term %}長期譲渡 20.315%{% else %}短期譲渡 39.63%{% endif %}）</span>
+      </td></tr>
+      <tr><th>総利益</th><td><strong>{{ r.total_profit|yen }} 円</strong>
+        <span class="muted">（累計ATCF ＋ 売却手取り − 自己資金）</span></td></tr>
+    {% endif %}
+  </table>
+
+  <details>
+    <summary class="muted">{{ r.years|length }}年の明細を見る</summary>
+    <div class="scroll">
+    <table class="cf-table">
+      <thead><tr>
+        <th>年</th><th>満室年収</th><th>実効収入</th><th>運営費</th><th>NOI</th>
+        <th>返済</th><th>うち利息</th><th>うち元金</th><th>残債</th><th>CAPEX</th><th>BTCF</th>
+        {% if with_tax %}<th>減価償却</th><th>不動産所得</th><th>所得税</th><th>住民税</th><th>ATCF</th><th>DC</th>{% endif %}
+      </tr></thead>
+      <tbody>
+      {% for row in r.years %}
+        <tr>
+          <td>{{ row.year }}</td>
+          <td>{{ row.gross_income|yen }}</td>
+          <td>{{ row.effective_income|yen }}</td>
+          <td>{{ row.operating_expenses|yen }}</td>
+          <td>{{ row.noi|yen }}</td>
+          <td>{{ row.loan_payment|yen }}</td>
+          <td>{{ row.loan_interest|yen }}</td>
+          <td>{{ row.loan_principal|yen }}</td>
+          <td>{{ row.loan_balance|yen }}</td>
+          <td>{{ row.capex|yen }}</td>
+          <td>{{ row.btcf|yen }}</td>
+          {% if with_tax %}
+            <td>{{ row.depreciation|yen }}</td>
+            <td>{{ row.real_estate_income|yen }}</td>
+            <td>{{ row.income_tax|yen }}</td>
+            <td>{{ row.resident_tax|yen }}</td>
+            <td>{{ row.atcf|yen }}</td>
+            <td>{% if row.dead_cross %}●{% endif %}</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+
+  <p class="muted">{{ disclaimer_rounding }}</p>
+  <p class="muted">{{ disclaimer_operating }}</p>
+  {% if not with_tax %}
+    <p class="muted">この結果は<strong>税引前</strong>です（所得税・住民税・売却時の譲渡税を含みません）。</p>
+  {% endif %}
+</div>

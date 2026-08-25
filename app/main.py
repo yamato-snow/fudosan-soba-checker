@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.routes_cashflow import router as cashflow_router
 from app.api.routes_rent import router as rent_router
 from app.api.routes_soba import router
 from app.db import init_db
@@ -30,3 +31,4 @@ app = FastAPI(
 )
 app.include_router(router)
 app.include_router(rent_router)
+app.include_router(cashflow_router)

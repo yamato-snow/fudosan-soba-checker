@@ -89,7 +89,7 @@ async def rent_page(
     )
 
 
-async def _assess_rent(
+async def assess_rent(
     session: AsyncSession,
     settings: Settings,
     *,
@@ -159,7 +159,7 @@ async def rent_valuate_htmx(
 ):
     try:
         year = _optional_number(building_year, "築年")
-        assessment = await _assess_rent(
+        assessment = await assess_rent(
             session,
             settings,
             property_kind=property_kind,

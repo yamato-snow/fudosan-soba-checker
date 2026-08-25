@@ -35,6 +35,8 @@
     <p class="muted">緩和した条件: {{ v.relaxations|join(" / ") }}</p>
   {% endif %}
 
+  <p><a href="/cashflow?{{ cf_query }}">この物件で収支シミュレーション →</a></p>
+
   <details>
     <summary class="muted">使用した事例 {{ v.case_count }} 件を見る</summary>
     <div class="scroll">

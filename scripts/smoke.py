@@ -84,6 +84,35 @@ CHECKS = [
             }
         },
     ),
+    # 収支シミュレーション（B-1）
+    ("GET", "/cashflow", {}),
+    ("GET", "/cashflow?land_type=中古マンション等&area=62.5&price=15000000", {}),
+    (
+        # 未入力欄を空文字で送る＝実際にフォームから飛んでくる形
+        "POST",
+        "/cashflow/simulate",
+        {
+            "data": {
+                "price": "15000000",
+                "acquisition_costs": "1000000",
+                "monthly_rent": "90000",
+                "vacancy_rate_percent": "5",
+                "loan_principal": "12000000",
+                "loan_rate_percent": "2.0",
+                "loan_years": "25",
+                "monthly_other_income": "",
+                "annual_insurance": "",
+                "capex_annual": "",
+                "years": "",
+            }
+        },
+    ),
+    (
+        # 現金購入（DSCR が None → 「—」表示。500 や ∞ にならないこと）
+        "POST",
+        "/cashflow/simulate",
+        {"data": {"price": "15000000", "monthly_rent": "90000", "loan_principal": ""}},
+    ),
 ]
 
 
