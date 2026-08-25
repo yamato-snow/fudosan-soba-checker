@@ -113,6 +113,30 @@ CHECKS = [
         "/cashflow/simulate",
         {"data": {"price": "15000000", "monthly_rent": "90000", "loan_principal": ""}},
     ),
+    (
+        # 税引後＋出口（B-2）。全角ＲＣの構造語彙も通す
+        "POST",
+        "/cashflow/simulate",
+        {
+            "data": {
+                "price": "15000000",
+                "acquisition_costs": "1000000",
+                "monthly_rent": "90000",
+                "vacancy_rate_percent": "5",
+                "loan_principal": "12000000",
+                "loan_rate_percent": "2.0",
+                "loan_years": "25",
+                "other_income": "5000000",
+                "building_ratio": "0.4",
+                "structure": "ＲＣ",
+                "building_age": "20",
+                "exit_year": "10",
+                "exit_sale_price": "13000000",
+                "useful_life_override": "",
+                "resident_tax_rate_percent": "",
+            }
+        },
+    ),
 ]
 
 

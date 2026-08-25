@@ -5,6 +5,9 @@
   {% for w in r.warnings %}
     <p class="warn">⚠ {{ w }}</p>
   {% endfor %}
+  {% if warn_land_interest %}
+    <p class="warn">⚠ {{ warn_land_interest }}</p>
+  {% endif %}
 
   <div class="kpi">
     <div><span class="muted">表面利回り</span><strong>{{ "%.2f"|format(r.first_year.gross_yield * 100) }}%</strong></div>
@@ -17,6 +20,7 @@
     {% endif %}
   </div>
 
+  <div class="scroll">
   <table>
     <tr><th>自己資金</th><td>{{ r.equity|yen }} 円</td></tr>
     <tr><th>{{ r.years|length }}年の累計{% if with_tax %}ATCF{% else %}BTCF{% endif %}</th><td>{{ r.total_atcf|yen }} 円</td></tr>
@@ -41,6 +45,27 @@
         <span class="muted">（累計ATCF ＋ 売却手取り − 自己資金）</span></td></tr>
     {% endif %}
   </table>
+  </div>
+
+  {% if sensitivity %}
+    <h3 style="font-size:.95rem; margin-bottom:.3rem">建物割合を ±0.10 動かしたときの総利益</h3>
+    <p class="muted">
+      建物割合は総利益への感度が最も高い入力です。入力値だけを信じず、前提でどれだけ動くかを見てください。
+    </p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>建物割合</th><th>総利益</th></tr></thead>
+      <tbody>
+      {% for ratio, profit in sensitivity %}
+        <tr {% if ratio == building_ratio %}style="font-weight:700"{% endif %}>
+          <td>{{ "%.2f"|format(ratio) }}{% if ratio == building_ratio %}（入力値）{% endif %}</td>
+          <td>{{ yen_or_dash(profit) }} 円</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endif %}
 
   <details>
     <summary class="muted">{{ r.years|length }}年の明細を見る</summary>
@@ -82,6 +107,9 @@
 
   <p class="muted">{{ disclaimer_rounding }}</p>
   <p class="muted">{{ disclaimer_operating }}</p>
+  {% if with_tax %}
+    <p class="muted">{{ disclaimer_tax }}</p>
+  {% endif %}
   {% if not with_tax %}
     <p class="muted">この結果は<strong>税引前</strong>です（所得税・住民税・売却時の譲渡税を含みません）。</p>
   {% endif %}

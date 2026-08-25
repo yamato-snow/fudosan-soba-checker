@@ -104,13 +104,73 @@
     <input id="years" name="years" type="number" min="1" max="50" step="1" placeholder="既定 30">
   </div>
 
+  {% if with_tax %}
+    <div style="grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: .5rem">
+      <strong style="font-size:.9rem">税引後・出口（空欄なら税引前までを計算します）</strong>
+    </div>
+    <div>
+      <label for="other_income">他の課税所得（円/年・給与等。空欄なら税引前モード）</label>
+      <input id="other_income" name="other_income" type="number" min="0" step="1" placeholder="例: 5000000">
+    </div>
+    <div>
+      <label for="building_ratio">
+        建物割合（0〜1・<strong>必須</strong>／既定値は持ちません）
+      </label>
+      {# placeholder に目安を出すだけ。value には入れない（触らないまま「もっともらしい数字」が出るのを防ぐ） #}
+      <input id="building_ratio" name="building_ratio" type="number" min="0.01" max="0.99" step="0.01"
+             placeholder="目安: 木造 0.5 / RC 0.4">
+    </div>
+    <div>
+      <label for="structure">構造（耐用年数の判定に使う）</label>
+      <select id="structure" name="structure">
+        <option value="">（選択してください）</option>
+        {% for key, label in structure_labels.items() %}
+          <option value="{{ key }}" {% if key == structure %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="building_age">取得時点の築年数（年）</label>
+      <input id="building_age" name="building_age" type="number" min="0" max="200" step="1"
+             value="{{ building_age if building_age is not none else '' }}">
+    </div>
+    <div>
+      <label for="useful_life_override">耐用年数を手で指定（年・任意）</label>
+      <input id="useful_life_override" name="useful_life_override" type="number" min="2" max="100" step="1">
+    </div>
+    <div>
+      <label for="resident_tax_rate_percent">住民税率（%）</label>
+      <input id="resident_tax_rate_percent" name="resident_tax_rate_percent" type="number" min="0" max="100" step="0.1"
+             placeholder="既定 10">
+    </div>
+    <div>
+      <label for="exit_year">売却する年（空欄なら保有継続）</label>
+      <input id="exit_year" name="exit_year" type="number" min="1" max="50" step="1" placeholder="例: 10">
+    </div>
+    <div>
+      <label for="exit_sale_price">売却価格（円）</label>
+      <input id="exit_sale_price" name="exit_sale_price" type="number" min="1" step="1" placeholder="例: 13000000">
+    </div>
+    <div>
+      <label for="exit_sale_cost_rate_percent">売却諸費用（%）</label>
+      <input id="exit_sale_cost_rate_percent" name="exit_sale_cost_rate_percent" type="number" min="0" max="100" step="0.1"
+             placeholder="既定 3">
+    </div>
+  {% endif %}
+
   <div style="align-self:end"><button type="submit">収支を計算する</button></div>
 </form>
 
 <p class="muted">
   指標の定義: 表面利回り＝満室年収÷物件価格 ／ 実質利回り＝NOI÷(価格＋取得諸費用) ／
   返済比率＝年間返済÷満室年収 ／ DSCR＝NOI÷年間返済 ／ BTCF＝NOI−返済−資本的支出。
-  {% if not with_tax %}このバージョンは<strong>税引前</strong>までを計算します（税引後・出口は B-2）。{% endif %}
+  {% if with_tax %}
+  税引後: 不動産所得＝実効収入−(運営費＋支払利息＋減価償却＋経費扱いCAPEX) ／
+  ATCF＝BTCF−(所得税＋住民税) ／ デッドクロス＝元金返済 &gt; 減価償却 ／
+  総利益＝累計ATCF＋売却手取り−自己資金。
+  税額は<strong>他所得と合算した差分</strong>（`税(他所得+不動産所得) − 税(他所得)`）で出すので、
+  赤字年は自然にマイナス＝損益通算になります。
+  {% else %}このバージョンは<strong>税引前</strong>までを計算します（税引後・出口は B-2）。{% endif %}
 </p>
 
 <div id="cf-result"></div>
