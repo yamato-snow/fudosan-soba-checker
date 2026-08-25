@@ -38,7 +38,7 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
 
 async def init_db() -> None:
     """テーブルを作る（MVP は Alembic を使わない。スキーマ変更は data/soba.db を消して再取込）。"""
-    from app.models import transaction  # noqa: F401  テーブル定義の読み込み
+    from app.models import rent_listing, transaction  # noqa: F401  テーブル定義の読み込み
 
     engine = get_engine()
     async with engine.begin() as conn:

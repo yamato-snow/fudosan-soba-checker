@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}賃料相場 | 不動産相場チェッカー{% endblock %}
+{% block content %}
+
+{% if listing_count == 0 %}
+  <p class="error">
+    賃料事例がまだ1件もありません。国交省APIに賃貸データは無いため、賃料は自分で入れる必要があります
+    → <a href="/rent/import">CSVで取り込む</a>
+  </p>
+{% endif %}
+
+<form class="card" hx-post="/rent/valuate" hx-target="#rent-result" hx-swap="innerHTML">
+  <div>
+    <label for="property_kind">種別</label>
+    <select id="property_kind" name="property_kind">
+      {% for k in kinds %}<option value="{{ k }}">{{ kind_labels[k] }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="district_code">地区（物件の所在地区。括弧内は賃料事例の件数）</label>
+    <select id="district_code" name="district_code">
+      {% for d in districts %}
+        <option value="{{ d.code }}" {% if d.code == home_district %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="exclusive_area">面積（㎡・区分=専有／戸建=延床）</label>
+    <input id="exclusive_area" name="exclusive_area" type="number" min="1" step="0.01" required placeholder="例: 62.5">
+  </div>
+  <div>
+    <label for="building_year">築年（西暦・任意）</label>
+    <input id="building_year" name="building_year" type="number" min="1900" max="2100" step="1" placeholder="例: 2005">
+  </div>
+  <div>
+    <label for="target_monthly">想定月額賃料（円・管理費込み・任意）</label>
+    <input id="target_monthly" name="target_monthly" type="number" min="1" step="1" placeholder="空欄なら相場レンジだけ出します">
+  </div>
+  <div style="align-self:end">
+    <button type="submit">賃料相場を見る</button>
+  </div>
+</form>
+
+<p class="muted">
+  賃料の主指標は <strong>(賃料＋管理費) ÷ 面積</strong>（円/㎡/月）。募集情報の賃料と管理費の切り分けは
+  恣意的なので合算します。相場は同一地区→近隣地区→基準市→対象市の順に事例を探し、5件に満たなければ条件を自動で緩めます。
+</p>
+<p class="muted">{{ note_asking }}</p>
+
+<div id="rent-result"></div>
+{% endblock %}

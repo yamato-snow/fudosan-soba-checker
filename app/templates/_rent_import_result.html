@@ -1,0 +1,23 @@
+<div class="result">
+  <p>
+    取込ラベル <strong>{{ source_ref }}</strong>:
+    新規 <strong>{{ inserted }}</strong> 件 / 既存スキップ {{ skipped }} 件
+    {% if purge_first %}/ 事前削除 {{ purged }} 件{% endif %}
+    / エラー {{ errors|length }} 件
+  </p>
+  <p class="muted">賃料事例は合計 {{ total }} 件になりました。<a href="/rent">賃料相場を見る</a> ／ <a href="/rent/listings">事例一覧</a></p>
+
+  {% if errors %}
+    <p class="error">取り込めなかった行（この行だけ直して再取込すれば足ります）</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>行</th><th>理由</th><th>元の行</th></tr></thead>
+      <tbody>
+      {% for e in errors %}
+        <tr><td>{{ e.line_no }}</td><td>{{ e.message }}</td><td>{{ e.raw }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endif %}
+</div>

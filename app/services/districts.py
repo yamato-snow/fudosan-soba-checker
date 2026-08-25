@@ -61,21 +61,26 @@ class TargetProperty:
     building_year: int | None = None
 
 
-def _ring_filter(ctx: RingContext, ring: int):
-    """指定リング「まで」を含む WHERE 条件。"""
+def _ring_filter(ctx: RingContext, ring: int, model=Transaction):
+    """指定リング「まで」を含む WHERE 条件。
+
+    `model` は `district_code` / `municipality_code` を同じ体系で持つテーブルなら何でもよい
+    （賃料事例 `RentListing` も同じ列名にしてある）。Ring2 の OR ロジックを2箇所に分けると
+    片方だけ直す壊れ方をするので、複製せずモデルだけ差し替える。
+    """
     if ring <= 0:
-        return Transaction.district_code == ctx.district_code
+        return model.district_code == ctx.district_code
     if ring == 1:
         codes = {ctx.district_code, *ctx.neighbor_districts}
-        return Transaction.district_code.in_(sorted(codes))
+        return model.district_code.in_(sorted(codes))
     if ring == 2:
         # 基準市全域（Ring0/1 の地区は基準市外にもありうるので明示的に OR で足す）
         codes = {ctx.district_code, *ctx.neighbor_districts}
         return or_(
-            Transaction.municipality_code == ctx.home_city,
-            Transaction.district_code.in_(sorted(codes)),
+            model.municipality_code == ctx.home_city,
+            model.district_code.in_(sorted(codes)),
         )
-    return Transaction.municipality_code.in_(sorted(set(ctx.target_cities)))
+    return model.municipality_code.in_(sorted(set(ctx.target_cities)))
 
 
 def build_case_query(ctx: RingContext, target: TargetProperty, criteria: Criteria) -> Select:

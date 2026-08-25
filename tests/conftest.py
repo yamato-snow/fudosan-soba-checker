@@ -35,11 +35,14 @@ async def _fresh_session():
     from sqlalchemy import delete
 
     from app.db import get_sessionmaker, init_db
+    from app.models.rent_listing import RentListing
     from app.models.transaction import Transaction
 
     await init_db()
     session = get_sessionmaker()()
     await session.execute(delete(Transaction))
+    # 新テーブルとセットで消す（忘れると賃料事例がテスト間で持ち越されて汚染する）
+    await session.execute(delete(RentListing))
     await session.commit()
     return session
 

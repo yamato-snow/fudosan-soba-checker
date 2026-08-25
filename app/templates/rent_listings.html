@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}賃料事例一覧 | 不動産相場チェッカー{% endblock %}
+{% block content %}
+
+<form class="card" method="get" action="/rent/listings">
+  <div>
+    <label for="district_code">地区</label>
+    <select id="district_code" name="district_code">
+      <option value="">（すべて）</option>
+      {% for d in districts %}
+        <option value="{{ d.code }}" {% if d.code == selected_district %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="property_kind">種別</label>
+    <select id="property_kind" name="property_kind">
+      <option value="">（すべて）</option>
+      {% for k in kinds %}
+        <option value="{{ k }}" {% if k == selected_kind %}selected{% endif %}>{{ kind_labels[k] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="align-self:end"><button type="submit">絞り込む</button></div>
+</form>
+
+<p class="muted">
+  {{ rows|length }} 件を表示（調査時点の新しい順）。㎡単価は (賃料＋管理費) ÷ 面積。{{ note_asking }}
+</p>
+
+{% if not rows %}
+  <p class="error">賃料事例がありません。<a href="/rent/import">CSVで取り込む</a></p>
+{% else %}
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>調査</th><th>市区町村 / 地区</th><th>種別</th><th>賃料</th><th>管理費</th><th>面積㎡</th>
+    <th>間取り</th><th>築年</th><th>階</th><th>駅徒歩</th><th>㎡単価</th><th>状態</th><th>取込ラベル</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.survey_year }}/{{ r.survey_month }}</td>
+      <td>{{ r.municipality }} {{ r.district_name }}</td>
+      <td>{{ kind_labels.get(r.property_kind, r.property_kind) }}</td>
+      <td>{{ r.monthly_rent|yen }}</td>
+      <td>{{ r.admin_fee|yen }}</td>
+      <td>{{ r.exclusive_area }}</td>
+      <td>{{ r.layout or "-" }}</td>
+      <td>{{ r.building_year or "-" }}</td>
+      <td>{% if r.floor_no %}{{ r.floor_no }}{% if r.total_floors %}/{{ r.total_floors }}{% endif %}{% else %}-{% endif %}</td>
+      <td>{% if r.station_walk_min is not none %}{{ r.station_walk_min }}分{% else %}-{% endif %}</td>
+      <td>{{ r.rent_unit_price|yen }}</td>
+      <td>{{ r.status }}</td>
+      <td>{{ r.source_ref }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}
