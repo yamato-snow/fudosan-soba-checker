@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
@@ -19,15 +21,19 @@ from app.config import Settings, get_settings
 from app.constants import MIN_CASES_JUDGEABLE, RENT_KIND_BY_LAND_TYPE, TYPE_LABELS
 from app.db import get_session
 from app.schemas.cashflow import CashflowForm
-from app.services.cashflow import simulate
-from app.services.tax_tables import TAX_TABLE_VERSION
+from app.services.cashflow import sensitivity_by_building_ratio, simulate
+from app.services.tax_tables import STRUCTURE_LABELS, TAX_TABLE_VERSION
 
 router = APIRouter()
 
-# B-1 は税引前まで。税引後・出口（B-2）を有効にするときはここを True にする
-# （plan のロールバック手順: ここを False に戻せば B-1 の状態で動き続ける）
-WITH_TAX = False
-WITH_EXIT = False
+# 築年 → 築年数の換算に使う。テストを日付で揺らさないため、ここで1箇所に固定する
+CURRENT_YEAR = date.today().year
+
+# 税引後・出口（B-2）の有効化スイッチ。
+# ロールバック手順: ここを False に戻せば税引前（B-1）の状態で動き続ける
+# （`simulate()` の分岐は loan/tax/exit の None 判定だけで組んであるため）。
+WITH_TAX = True
+WITH_EXIT = True
 
 DISCLAIMER_ROUNDING = (
     "金額はすべて概算（円単位で四捨五入）です。実際の返済額・費用は契約条件で変わります。"
@@ -36,6 +42,16 @@ DISCLAIMER_OPERATING = (
     "管理費・修繕積立金・運営費は期間中一定として計算しています"
     "（実際は10〜15年で上昇する場合があります）。"
     "資本的支出は当年一括の経費として扱っています。"
+)
+DISCLAIMER_TAX = (
+    "税額は概算です。建物割合・耐用年数・経費区分の前提により大きく変わります。"
+    f"税率は {TAX_TABLE_VERSION} 時点のものです。税務判断は必ず税理士にご確認ください。"
+)
+# 常時表示にすると「読まれない免責」になって警告の価値が死ぬので、条件が立ったときだけ出す。
+# どちら向きに間違っているかを明示する（方向のわからない警告は判断に使えない）
+WARN_LAND_INTEREST = (
+    "土地取得にかかる借入金利子は損益通算の対象外です。"
+    "本計算はこの制限を反映していないため、赤字年の節税効果を過大に見積もっています。"
 )
 
 
@@ -122,6 +138,10 @@ async def cashflow_page(
             "monthly_rent": monthly_rent,
             "rent_note": rent_note,
             "with_tax": WITH_TAX,
+            "structure": "",
+            "structure_labels": STRUCTURE_LABELS,
+            # 築年から取得時点の築年数を出しておく（耐用年数の簡便法に効く入力なので空欄にしない）
+            "building_age": (CURRENT_YEAR - int(building_year)) if building_year else None,
             "tax_table_version": TAX_TABLE_VERSION,
         },
     )
@@ -135,7 +155,11 @@ async def cashflow_simulate(
     payload = dict(await request.form())
     try:
         form = CashflowForm(**payload)
-        result = simulate(form.to_input(with_tax=WITH_TAX, with_exit=WITH_EXIT))
+        data = form.to_input(with_tax=WITH_TAX, with_exit=WITH_EXIT)
+        result = simulate(data)
+        # 建物割合は総利益への感度が最も高い入力なので、「この数字は前提でこれだけ動く」を必ず見せる。
+        # `simulate()` は純粋関数なので追加コストは呼び出し3回だけ
+        sensitivity = sensitivity_by_building_ratio(data) if data.tax else []
     except ValidationError as exc:
         return templates.TemplateResponse(
             request, "_error.html", {"message": _readable(exc)}, status_code=400
@@ -150,10 +174,17 @@ async def cashflow_simulate(
         "_cashflow_result.html",
         {
             "r": result,
-            "with_tax": WITH_TAX,
+            "with_tax": data.tax is not None,
+            "sensitivity": sensitivity,
+            "building_ratio": data.acquisition.building_ratio,
             "tax_table_version": TAX_TABLE_VERSION,
             "disclaimer_rounding": DISCLAIMER_ROUNDING,
             "disclaimer_operating": DISCLAIMER_OPERATING,
+            "disclaimer_tax": DISCLAIMER_TAX,
+            # 借入あり かつ 赤字年ありのときだけ出す（無条件表示は読まれない免責になる）
+            "warn_land_interest": (
+                WARN_LAND_INTEREST if data.loan and result.has_loss_year else ""
+            ),
         },
     )
 

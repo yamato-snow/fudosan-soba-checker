@@ -11,6 +11,7 @@
       <span class="band band-{{ a.band }}">{{ a.band }}</span>
     </p>
   {% endif %}
+  <div class="scroll">
   <table>
     <tr><th>相場（中央値）の想定月額</th><td>{{ a.median_monthly|yen }} 円/月</td></tr>
     <tr><th>相場（中央値）の㎡単価</th><td>{{ v.median_unit_price|yen }} 円/㎡/月</td></tr>
@@ -38,6 +39,7 @@
     <tr><th>近隣地区（Ring1）の由来</th><td>{{ v.ring1_source or "-" }}</td></tr>
     <tr><th>信頼度</th><td>{{ v.confidence }}（{{ v.confidence_note }}）</td></tr>
   </table>
+  </div>
   {% if v.dispersion_flag %}
     <p class="muted">⚠ ばらつき大: 事例の㎡単価が広く散っています（Q3/Q1 &gt; 1.8）。レンジは参考程度に。</p>
   {% endif %}
