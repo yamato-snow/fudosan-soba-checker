@@ -56,6 +56,34 @@ CHECKS = [
             }
         },
     ),
+    # 賃料（A-2）
+    ("GET", "/rent", {}),
+    ("GET", "/rent/import", {}),
+    ("GET", "/rent/listings", {}),
+    (
+        # 任意入力（築年・想定賃料）を空欄で送る＝実際にフォームから飛んでくる形
+        "POST",
+        "/rent/valuate",
+        {
+            "data": {
+                "property_kind": "区分",
+                "district_code": "",
+                "exclusive_area": "62.5",
+                "building_year": "",
+                "target_monthly": "",
+            }
+        },
+    ),
+    (
+        "POST",
+        "/rent/import",
+        {
+            "data": {
+                "source_ref": "smoke",
+                "csv_text": "地区コード,種別,賃料,面積,調査年,調査月\n",
+            }
+        },
+    ),
 ]
 
 

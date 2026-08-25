@@ -43,3 +43,29 @@ CONFIDENCE_NOTES = {
 BAND_CHEAP = "割安"
 BAND_FAIR = "適正"
 BAND_EXPENSIVE = "割高"
+
+# --- 賃料相場（A-2）---
+# 賃料事例の種別。売買側の `Type` とは別体系（賃貸に「宅地(土地)」は無い）だが、
+# 語彙は売買の TYPE_CONDO / TYPE_HOUSE と1対1に対応させてある
+RENT_KIND_HOUSE = "戸建"
+RENT_KIND_CONDO = "区分"
+RENT_KINDS = (RENT_KIND_CONDO, RENT_KIND_HOUSE)
+
+RENT_KIND_LABELS = {
+    RENT_KIND_CONDO: "区分マンション（賃貸）",
+    RENT_KIND_HOUSE: "戸建（賃貸）",
+}
+
+# 募集中／成約。**補正係数は作らない**（表示で注記するだけ）
+RENT_STATUS_OPEN = "募集中"
+RENT_STATUS_CLOSED = "成約"
+RENT_STATUSES = (RENT_STATUS_OPEN, RENT_STATUS_CLOSED)
+
+# 取込の出所
+RENT_SOURCE_CSV = "csv"
+RENT_SOURCE_MANUAL = "manual"
+
+RENT_NOTE_ASKING = (
+    "この判定は募集賃料ベースです（成約賃料ではありません）。"
+    "一般に成約賃料は募集賃料より低く出ますが、補正係数は掛けていません。"
+)

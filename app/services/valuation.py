@@ -58,6 +58,9 @@ class Criteria:
     # `area_tolerance` が何の面積かの表示名。区分は Area 自体が専有面積なので言葉を変える
     # （デフォルト付き＝既存の呼び出しと挙動に影響しない）
     area_label: str = "土地面積"
+    # `floor_tolerance` が何の面積かの表示名。賃料の区分では専有面積がこの軸に載る
+    # （既定値が現行文言と同一なので既存テストの期待文字列は変わらない）
+    floor_label: str = "延床"
 
     def relaxations(self, base: "Criteria") -> list[str]:
         """初期条件からどこを緩めたかの説明。"""
@@ -73,9 +76,9 @@ class Criteria:
             notes.append(f"{self.area_label}を±{int(self.area_tolerance * 100)}%に緩和")
         if self.floor_tolerance != base.floor_tolerance:
             if self.floor_tolerance is None:
-                notes.append("延床の条件を撤廃")
+                notes.append(f"{self.floor_label}の条件を撤廃")
             else:
-                notes.append(f"延床を±{int(self.floor_tolerance * 100)}%に緩和")
+                notes.append(f"{self.floor_label}を±{int(self.floor_tolerance * 100)}%に緩和")
         return notes
 
 
@@ -154,6 +157,9 @@ class Case:
     price_category: str = ""
     ring: int = 0
     land_unit_price: float | None = None  # 従指標: 土地面積あたりの単価
+    # 事例の出所オブジェクト（賃料では `RentCase`）。判定には一切使わず、
+    # 表示側が賃料の語彙（賃料・管理費・間取り・階）を取り戻すためだけに持つ
+    source: object | None = None
 
 
 @dataclass

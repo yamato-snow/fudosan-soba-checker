@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}賃料事例の取込 | 不動産相場チェッカー{% endblock %}
+{% block content %}
+
+<p class="muted">
+  賃貸サイトのスクレイピングは各サイトの規約で禁止されているため、賃料事例は手入力／CSV が唯一の道です。
+  1行の書き損じで全体を捨てず、<strong>正しい行だけ取り込んで不正行は行番号つきで返します</strong>。
+</p>
+
+<form class="card" hx-post="/rent/import" hx-target="#import-result" hx-swap="innerHTML"
+      hx-encoding="multipart/form-data">
+  <div>
+    <label for="source_ref">取込ラベル（必須・消して入れ直す単位）</label>
+    <input id="source_ref" name="source_ref" type="text" required placeholder="例: 2026-08_サンプル市_区分">
+  </div>
+  <div>
+    <label for="file">CSV ファイル（utf-8 / cp932 のどちらでも可）</label>
+    <input id="file" name="file" type="file" accept=".csv,text/csv">
+  </div>
+  <div style="grid-column: 1 / -1">
+    <label for="csv_text">または CSV を貼り付け（ファイルを選んだ場合はファイルが優先）</label>
+    <textarea id="csv_text" name="csv_text" rows="8" style="width:100%; box-sizing:border-box"
+              placeholder="{{ template_header }}">
+    </textarea>
+  </div>
+  <div>
+    <label for="purge_first">
+      <input id="purge_first" name="purge_first" type="checkbox" value="true" style="width:auto">
+      同じ取込ラベルの既存事例を消してから入れる（訂正して入れ直すとき）
+    </label>
+  </div>
+  <div style="align-self:end"><button type="submit">取り込む</button></div>
+</form>
+
+<div id="import-result"></div>
+
+<h2 style="font-size:1rem">CSV の書き方</h2>
+<div class="scroll"><pre class="muted" style="font-size:.8rem">{{ template_header }}
+990010040,地区40,区分,85000,5000,62.5,3LDK,2005,ＲＣ,3,8,8,無,2026,8,募集中
+990010040,地区40,区分,78000,4000,58.0,2LDK,2001,ＲＣ,2,8,10,無,2026,7,募集中
+# ← 行頭が # の行と空行は無視されます</pre></div>
+
+<ul class="muted">
+  <li>必須列: 地区コード（9桁）／種別／賃料／面積／調査年／調査月。市区町村コードは地区コードの先頭5桁から補います</li>
+  <li>種別は {{ kinds|join(" / ") }}／状態は {{ statuses|join(" / ") }}（未記入は募集中）</li>
+  <li>面積は 区分=専有面積・戸建=延床面積。全角数字・「85,000円」「62.5㎡」「徒歩8分」のような単位つきも読めます</li>
+  <li>築年は空欄でも取り込めます（築年での絞り込みが効かなくなるだけ）</li>
+</ul>
+
+{% if sources %}
+  <h2 style="font-size:1rem">取込ラベル別の件数</h2>
+  <table>
+    <thead><tr><th>取込ラベル</th><th>件数</th></tr></thead>
+    <tbody>
+    {% for ref, count in sources %}
+      <tr><td>{{ ref or "(未設定)" }}</td><td>{{ count }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

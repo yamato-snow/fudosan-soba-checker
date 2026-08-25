@@ -1,0 +1,91 @@
+<div class="result">
+{% if a.judgeable %}
+  <p>
+    <span class="ratio">{{ a.low_monthly|yen }} 〜 {{ a.high_monthly|yen }} 円/月</span>
+    <span class="muted">想定月額賃料レンジ（Q1〜Q3 × 面積 {{ a.exclusive_area }}㎡・管理費込み）</span>
+  </p>
+  {% if a.has_target %}
+    <p>
+      <span class="ratio">{{ "%+.1f"|format(a.ratio_percent) }}%</span>
+      <span class="muted">相場中央値比（＋＝相場より高い設定／−＝安い設定）</span>
+      <span class="band band-{{ a.band }}">{{ a.band }}</span>
+    </p>
+  {% endif %}
+  <table>
+    <tr><th>相場（中央値）の想定月額</th><td>{{ a.median_monthly|yen }} 円/月</td></tr>
+    <tr><th>相場（中央値）の㎡単価</th><td>{{ v.median_unit_price|yen }} 円/㎡/月</td></tr>
+    <tr><th>四分位（Q1 / Q3）</th><td>{{ v.q1|yen }} / {{ v.q3|yen }} 円/㎡/月</td></tr>
+    {% if a.has_target %}
+      <tr><th>入力した想定賃料</th><td>{{ a.target_monthly|yen }} 円/月（{{ v.target_unit_price|yen }} 円/㎡/月）</td></tr>
+    {% endif %}
+    <tr>
+      <th>使用事例件数</th>
+      <td>
+        {{ v.case_count }} 件
+        {% if v.trimmed_count %}<span class="muted">（外れ値 {{ v.trimmed_count }} 件を除外）</span>{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>事例の調査時点</th>
+      <td>
+        {% if a.survey_year_from %}
+          {{ a.survey_year_from }}〜{{ a.survey_year_to }}年
+          <span class="muted">（古さは係数で割り引いていません。ご自身で判断してください）</span>
+        {% else %}-{% endif %}
+      </td>
+    </tr>
+    <tr><th>抽出範囲（最終リング）</th><td>{{ v.ring_label }}</td></tr>
+    <tr><th>近隣地区（Ring1）の由来</th><td>{{ v.ring1_source or "-" }}</td></tr>
+    <tr><th>信頼度</th><td>{{ v.confidence }}（{{ v.confidence_note }}）</td></tr>
+  </table>
+  {% if v.dispersion_flag %}
+    <p class="muted">⚠ ばらつき大: 事例の㎡単価が広く散っています（Q3/Q1 &gt; 1.8）。レンジは参考程度に。</p>
+  {% endif %}
+  {% if v.relaxations %}
+    <p class="muted">緩和した条件: {{ v.relaxations|join(" / ") }}</p>
+  {% endif %}
+  <p class="muted">{{ note_asking }}</p>
+
+  <details>
+    <summary class="muted">使用した事例 {{ v.case_count }} 件を見る</summary>
+    <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>調査</th><th>地区</th><th>種別</th><th>賃料</th><th>管理費</th><th>{{ v.criteria.floor_label }}㎡</th>
+        <th>間取り</th><th>築年</th><th>階</th><th>㎡単価</th><th>状態</th>
+      </tr></thead>
+      <tbody>
+      {% for c in a.cases %}
+        <tr>
+          <td>{{ c.survey_year }}/{{ c.survey_month }}</td>
+          <td>{{ c.district_name }}</td>
+          <td>{{ kind_labels.get(c.property_kind, c.property_kind) }}</td>
+          <td>{{ c.monthly_rent|yen }}</td>
+          <td>{{ c.admin_fee|yen }}</td>
+          <td>{{ c.exclusive_area }}</td>
+          <td>{{ c.layout or "-" }}</td>
+          <td>{{ c.building_year or "-" }}</td>
+          <td>{% if c.floor_no %}{{ c.floor_no }}{% if c.total_floors %}/{{ c.total_floors }}{% endif %}{% else %}-{% endif %}</td>
+          <td>{{ c.rent_unit_price|yen }}</td>
+          <td>{{ c.status }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+{% else %}
+  <p class="error">判定不能</p>
+  <p>{{ v.message }}</p>
+  {% if shortage %}
+    <p><strong>{{ shortage }}</strong></p>
+    <p><a href="/rent/import">→ 賃料事例をCSVで取り込む</a> ／ <a href="/rent/listings">取込済みの事例を見る</a></p>
+  {% endif %}
+  <p class="muted">
+    見つかった事例: {{ v.case_count }} 件
+    {% if v.trimmed_count %}（外れ値 {{ v.trimmed_count }} 件を除外）{% endif %}
+    / 最終リング: {{ v.ring_label }} / 近隣地区の由来: {{ v.ring1_source or "-" }}
+    {% if v.relaxations %}/ 緩和した条件: {{ v.relaxations|join(" / ") }}{% endif %}
+  </p>
+{% endif %}
+</div>

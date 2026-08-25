@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.templates import templates
 from app.config import Settings, get_settings
 from app.constants import TARGET_TYPES, TYPE_HOUSE, TYPE_LABELS, TYPE_LAND
 from app.db import get_session
@@ -28,10 +26,6 @@ from app.services.valuation import (
     stages_for,
     unit_price_for_target,
 )
-
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-templates.env.filters["yen"] = lambda v: f"{int(v):,}" if v is not None else "-"
 
 router = APIRouter()
 
