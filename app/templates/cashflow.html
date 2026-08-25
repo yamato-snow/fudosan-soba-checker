@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}収支シミュレーション | 不動産相場チェッカー{% endblock %}
+{% block content %}
+
+{% if land_type_label %}
+  <p class="muted">
+    判定画面から引き継ぎ: {{ land_type_label }}
+    {% if area %}／ 面積 {{ area }}㎡{% endif %}
+    {% if building_year %}／ 築年 {{ building_year }}年{% endif %}
+  </p>
+{% endif %}
+
+<form class="card" hx-post="/cashflow/simulate" hx-target="#cf-result" hx-swap="innerHTML">
+  <input type="hidden" name="land_type" value="{{ land_type }}">
+  <input type="hidden" name="district_code" value="{{ district_code }}">
+  {% if area %}<input type="hidden" name="area" value="{{ area }}">{% endif %}
+
+  <div>
+    <label for="price">物件価格（円）</label>
+    <input id="price" name="price" type="number" min="1" step="1" required
+           value="{{ price|int if price else '' }}" placeholder="例: 15000000">
+  </div>
+  <div>
+    <label for="acquisition_costs">取得諸費用（円・仲介手数料／登記／不動産取得税 等）</label>
+    <input id="acquisition_costs" name="acquisition_costs" type="number" min="0" step="1"
+           placeholder="例: 1000000">
+  </div>
+  <div>
+    <label for="monthly_rent">満室時の月額賃料（円）</label>
+    <input id="monthly_rent" name="monthly_rent" type="number" min="1" step="1" required
+           value="{{ monthly_rent if monthly_rent else '' }}" placeholder="例: 90000">
+    <span class="muted">{{ rent_note }}</span>
+  </div>
+  <div>
+    <label for="monthly_other_income">その他収入（円/月・駐車場等）</label>
+    <input id="monthly_other_income" name="monthly_other_income" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="vacancy_rate_percent">空室率（%）</label>
+    <input id="vacancy_rate_percent" name="vacancy_rate_percent" type="number" min="0" max="100" step="0.1"
+           placeholder="例: 5">
+  </div>
+  <div>
+    <label for="rent_decline_rate_percent">賃料下落率（%/年）</label>
+    <input id="rent_decline_rate_percent" name="rent_decline_rate_percent" type="number" min="0" max="100" step="0.1"
+           placeholder="例: 1">
+  </div>
+
+  <div>
+    <label for="loan_principal">借入額（円・空欄なら現金購入）</label>
+    <input id="loan_principal" name="loan_principal" type="number" min="0" step="1" placeholder="例: 12000000">
+  </div>
+  <div>
+    <label for="loan_rate_percent">借入金利（%）</label>
+    <input id="loan_rate_percent" name="loan_rate_percent" type="number" min="0" max="20" step="0.01" placeholder="例: 2.0">
+  </div>
+  <div>
+    <label for="loan_years">借入年数（年）</label>
+    <input id="loan_years" name="loan_years" type="number" min="1" max="50" step="1" placeholder="例: 25">
+  </div>
+
+  <div>
+    <label for="monthly_admin_fee">管理費（円/月・区分）</label>
+    <input id="monthly_admin_fee" name="monthly_admin_fee" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="monthly_repair_reserve">修繕積立金（円/月・区分）</label>
+    <input id="monthly_repair_reserve" name="monthly_repair_reserve" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="pm_fee_rate_percent">PM 手数料（%・実効収入に対する率）</label>
+    <input id="pm_fee_rate_percent" name="pm_fee_rate_percent" type="number" min="0" max="100" step="0.1" placeholder="例: 5">
+  </div>
+  <div>
+    <label for="annual_property_tax">固定資産税・都市計画税（円/年）</label>
+    <input id="annual_property_tax" name="annual_property_tax" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="annual_insurance">保険料（円/年）</label>
+    <input id="annual_insurance" name="annual_insurance" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="annual_other">その他経費（円/年）</label>
+    <input id="annual_other" name="annual_other" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="restoration_cost">原状回復（円・入退去1回あたり）</label>
+    <input id="restoration_cost" name="restoration_cost" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="ad_cost">AD・広告料（円・1回あたり）</label>
+    <input id="ad_cost" name="ad_cost" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="turnover_years">入退去の周期（年）</label>
+    <input id="turnover_years" name="turnover_years" type="number" min="0.5" max="50" step="0.5" placeholder="既定 4">
+  </div>
+  <div>
+    <label for="capex_annual">資本的支出（円/年・当年一括経費として扱う）</label>
+    <input id="capex_annual" name="capex_annual" type="number" min="0" step="1">
+  </div>
+  <div>
+    <label for="years">シミュレーション期間（年）</label>
+    <input id="years" name="years" type="number" min="1" max="50" step="1" placeholder="既定 30">
+  </div>
+
+  <div style="align-self:end"><button type="submit">収支を計算する</button></div>
+</form>
+
+<p class="muted">
+  指標の定義: 表面利回り＝満室年収÷物件価格 ／ 実質利回り＝NOI÷(価格＋取得諸費用) ／
+  返済比率＝年間返済÷満室年収 ／ DSCR＝NOI÷年間返済 ／ BTCF＝NOI−返済−資本的支出。
+  {% if not with_tax %}このバージョンは<strong>税引前</strong>までを計算します（税引後・出口は B-2）。{% endif %}
+</p>
+
+<div id="cf-result"></div>
+{% endblock %}

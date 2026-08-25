@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select
@@ -199,7 +201,21 @@ async def valuate_htmx(
     return templates.TemplateResponse(
         request,
         "_result.html",
-        {"v": result, "type_labels": TYPE_LABELS},
+        {
+            "v": result,
+            "type_labels": TYPE_LABELS,
+            # 判定 → シミュレーションの受け渡しはクエリ文字列（`Valuation` に入力値を足さない）。
+            # 税パラメータは載せない（/cashflow 側のフォームで入力する）
+            "cf_query": urlencode(
+                {
+                    "land_type": land_type,
+                    "district_code": district_code,
+                    "price": int(listing_price),
+                    "area": area,
+                    "building_year": building_year or "",
+                }
+            ),
+        },
     )
 
 

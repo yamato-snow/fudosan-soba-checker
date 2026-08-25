@@ -44,3 +44,20 @@ def test_rent_judgement_layer_does_not_touch_the_database():
     parser = (APP_DIR / "services" / "rent_import.py").read_text(encoding="utf-8")
     for forbidden in ("sqlalchemy", "fastapi", "app.models"):
         assert forbidden not in parser
+
+
+def test_cashflow_is_a_pure_module():
+    """`cashflow.py` は DB・FastAPI・Jinja を import しない（純粋関数だけの層）。"""
+    source = (APP_DIR / "services" / "cashflow.py").read_text(encoding="utf-8")
+    for forbidden in ("sqlalchemy", "fastapi", "jinja2", "Jinja2", "app.models", "app.db"):
+        assert forbidden not in source, f"cashflow.py が {forbidden} を参照している"
+
+    tables = (APP_DIR / "services" / "tax_tables.py").read_text(encoding="utf-8")
+    for forbidden in ("sqlalchemy", "fastapi", "app.models", "app.db"):
+        assert forbidden not in tables
+
+
+def test_cashflow_documents_why_decimal_is_not_used():
+    """割り切りは結果でなくコードに残す（design.md の「意図的に作っていないもの」と同じ作法）。"""
+    source = (APP_DIR / "services" / "cashflow.py").read_text(encoding="utf-8")
+    assert "Decimal" in source and "使わない理由" in source

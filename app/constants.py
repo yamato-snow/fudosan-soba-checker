@@ -56,6 +56,12 @@ RENT_KIND_LABELS = {
     RENT_KIND_HOUSE: "戸建（賃貸）",
 }
 
+# 売買の種別 → 賃貸の種別。土地は貸しても賃料相場の対象外なので載せない
+RENT_KIND_BY_LAND_TYPE = {
+    TYPE_CONDO: RENT_KIND_CONDO,
+    TYPE_HOUSE: RENT_KIND_HOUSE,
+}
+
 # 募集中／成約。**補正係数は作らない**（表示で注記するだけ）
 RENT_STATUS_OPEN = "募集中"
 RENT_STATUS_CLOSED = "成約"
