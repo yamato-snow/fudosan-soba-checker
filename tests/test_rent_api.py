@@ -130,6 +130,42 @@ async def test_purge_then_reimport_replaces_the_label(client):
     assert "賃料事例は合計 5 件" in replaced.text
 
 
+def csv_with_one_bad_row() -> str:
+    return "\n".join(
+        [
+            CSV_TEMPLATE_HEADER,
+            rent_row(),
+            rent_row(kind="一棟", rent=70_000),
+            rent_row(rent=95_000, area=70),
+        ]
+    )
+
+
+async def test_bad_rows_without_purge_say_reimporting_only_that_row_is_enough(client):
+    res = await import_csv(client, csv_with_one_bad_row(), source_ref="aug")
+    assert "この行だけ直して再取込すれば足ります" in res.text
+    assert "チェックを外して" not in res.text
+
+
+async def test_bad_rows_with_purge_warn_that_reimport_deletes_the_label_again(client):
+    """事前削除ありでエラー行だけを入れ直すと、成功した行まで消える。案内がそれを止める。"""
+    res = await import_csv(client, csv_with_one_bad_row(), source_ref="aug", purge=True)
+    assert "この行だけ直して再取込すれば足ります" not in res.text
+    assert "チェックを外して" in res.text
+    assert "残したい行をすべて含めた CSV" in res.text
+
+    # 案内に反して、チェックを付けたままエラー行だけを入れ直すと、成功した2件が消える（案内の根拠）。
+    fixed_row_only = "\n".join([CSV_TEMPLATE_HEADER, rent_row(rent=70_000)])
+    again = await import_csv(client, fixed_row_only, source_ref="aug", purge=True)
+    assert "事前削除 2 件" in again.text
+    assert "賃料事例は合計 1 件" in again.text
+
+
+async def test_import_page_explains_what_the_purge_checkbox_keeps(client):
+    res = await client.get("/rent/import")
+    assert "このラベルに残るのは今回の CSV で取り込めた行だけです" in res.text
+
+
 async def test_listings_page_shows_imported_rows(client):
     await import_csv(client, synthetic_csv(3))
     res = await client.get("/rent/listings", params={"property_kind": RENT_KIND_CONDO})
