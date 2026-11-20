@@ -8,7 +8,16 @@
   <p class="muted">賃料事例は合計 {{ total }} 件になりました。<a href="/rent">賃料相場を見る</a> ／ <a href="/rent/listings">事例一覧</a></p>
 
   {% if errors %}
+    {% if purge_first %}
+    <p class="error">取り込めなかった行</p>
+    <p class="error">
+      今回は「既存事例を消してから入れる」を選んだので、再取込するとこのラベルの事例をまた全部消します。
+      直した行だけを入れ直すときは、チェックを外して取り込んでください。
+      チェックを付けたまま入れ直すときは、残したい行をすべて含めた CSV で取り込んでください。
+    </p>
+    {% else %}
     <p class="error">取り込めなかった行（この行だけ直して再取込すれば足ります）</p>
+    {% endif %}
     <div class="scroll">
     <table>
       <thead><tr><th>行</th><th>理由</th><th>元の行</th></tr></thead>
